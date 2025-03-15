@@ -514,8 +514,32 @@ send_line_to_vm "uci set network.lan.device=eth0"
 send_line_to_vm "uci set network.lan.proto=static"
 send_line_to_vm "uci set network.lan.ipaddr=${LAN_IP_ADDR}"
 send_line_to_vm "uci set network.lan.netmask=${LAN_NETMASK}"
+
+# 添加以下配置来开启WAN口访问
+send_line_to_vm "uci set firewall.@zone[1].input='ACCEPT'"
+send_line_to_vm "uci set firewall.@zone[1].forward='ACCEPT'"
+send_line_to_vm "uci add firewall rule"
+send_line_to_vm "uci set firewall.@rule[-1].name='Allow-Ping'"
+send_line_to_vm "uci set firewall.@rule[-1].src='wan'"
+send_line_to_vm "uci set firewall.@rule[-1].proto='icmp'"
+send_line_to_vm "uci set firewall.@rule[-1].target='ACCEPT'"
+send_line_to_vm "uci add firewall rule"
+send_line_to_vm "uci set firewall.@rule[-1].name='Allow-SSH'"
+send_line_to_vm "uci set firewall.@rule[-1].src='wan'"
+send_line_to_vm "uci set firewall.@rule[-1].proto='tcp'"
+send_line_to_vm "uci set firewall.@rule[-1].dest_port='22'"
+send_line_to_vm "uci set firewall.@rule[-1].target='ACCEPT'"
+send_line_to_vm "uci add firewall rule"
+send_line_to_vm "uci set firewall.@rule[-1].name='Allow-LUCI'"
+send_line_to_vm "uci set firewall.@rule[-1].src='wan'"
+send_line_to_vm "uci set firewall.@rule[-1].proto='tcp'"
+send_line_to_vm "uci set firewall.@rule[-1].dest_port='80'"
+send_line_to_vm "uci set firewall.@rule[-1].target='ACCEPT'"
+
+send_line_to_vm "uci commit firewall"
+send_line_to_vm "/etc/init.d/firewall restart"
+
 send_line_to_vm "uci commit"
-send_line_to_vm "halt"
 msg_ok "网络接口配置完成"
 until qm status $VMID | grep -q "stopped"; do
   sleep 2
