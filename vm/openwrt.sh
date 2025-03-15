@@ -7,7 +7,7 @@
 # https://github.com/community-scripts/ProxmoxVE/raw/main/LICENSE
 # Based on work from https://i12bretro.github.io/tutorials/0405.html
 
-source /dev/stdin <<< $(wget -qLO - https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/misc/api.func)
+source /dev/stdin <<< $(wget -qLO - https://proxy.vercel.lihaha.cn/proxy/raw.githubusercontent.com/community-scripts/ProxmoxVE/main/misc/api.func)
 
 function header_info {
   clear
@@ -29,7 +29,7 @@ METHOD=""
 NSAPP="openwrt-vm"
 var_os="openwrt"
 var_version=" "
-DISK_SIZE="0.5G"
+DISK_SIZE="32G"
 #
 GEN_MAC=02:$(openssl rand -hex 5 | awk '{print toupper($0)}' | sed 's/\(..\)/\1:/g; s/.$//')
 GEN_MAC_LAN=02:$(openssl rand -hex 5 | awk '{print toupper($0)}' | sed 's/\(..\)/\1:/g; s/.$//')
@@ -148,10 +148,10 @@ function send_line_to_vm() {
 TEMP_DIR=$(mktemp -d)
 pushd $TEMP_DIR >/dev/null
 
-if (whiptail --backtitle "Proxmox VE Helper Scripts" --title "OpenWrt VM" --yesno "This will create a New OpenWrt VM. Proceed?" 10 58); then
+if (whiptail --backtitle "Proxmox VE Helper Scripts" --title "OpenWrt VM" --yesno "这将创建一个新的OpenWrt虚拟机，是否继续?" 10 58); then
   :
 else
-  header_info && echo -e "⚠ User exited script \n" && exit
+  header_info && echo -e "⚠ 用户退出脚本 \n" && exit
 fi
 
 function msg_info() {
@@ -171,9 +171,9 @@ function msg_error() {
 
 function pve_check() {
   if ! pveversion | grep -Eq "pve-manager/8\.[1-3](\.[0-9]+)*"; then
-    msg_error "This version of Proxmox Virtual Environment is not supported"
-    echo -e "Requires Proxmox Virtual Environment Version 8.1 or later."
-    echo -e "Exiting..."
+    msg_error "当前Proxmox VE版本不支持"
+    echo -e "需要Proxmox Virtual Environment 8.1或更高版本"
+    echo -e "退出中..."
     sleep 2
     exit
 fi
@@ -181,8 +181,8 @@ fi
 
 function arch_check() {
   if [ "$(dpkg --print-architecture)" != "amd64" ]; then
-    echo -e "\n ${CROSS} This script will not work with PiMox! \n"
-    echo -e "Exiting..."
+    echo -e "\n ${CROSS} 此脚本不支持在PiMox上运行! \n"
+    echo -e "退出中..."
     sleep 2
     exit
   fi
@@ -191,8 +191,8 @@ function arch_check() {
 function ssh_check() {
   if command -v pveversion >/dev/null 2>&1; then
     if [ -n "${SSH_CLIENT:+x}" ]; then
-      if whiptail --backtitle "Proxmox VE Helper Scripts" --defaultno --title "SSH DETECTED" --yesno "It's suggested to use the Proxmox shell instead of SSH, since SSH can create issues while gathering variables. Would you like to proceed with using SSH?" 10 62; then
-        echo "you've been warned"
+      if whiptail --backtitle "Proxmox VE Helper Scripts" --defaultno --title "检测到SSH连接" --yesno "建议使用Proxmox Shell而不是SSH，因为SSH可能会在获取变量时出现问题。是否继续使用SSH?" 10 62; then
+        echo "已收到警告"
       else
         clear
         exit
@@ -203,7 +203,7 @@ function ssh_check() {
 
 function exit-script() {
   clear
-  echo -e "⚠  User exited script \n"
+  echo -e "⚠ 用户退出脚本 \n"
   exit
 }
 
@@ -211,13 +211,13 @@ function default_settings() {
   VMID=$NEXTID
   HN=openwrt
   CORE_COUNT="1"
-  RAM_SIZE="256"
+  RAM_SIZE="4096"
   BRG="vmbr0"
   VLAN=""
   MAC=$GEN_MAC
   LAN_MAC=$GEN_MAC_LAN
   LAN_BRG="vmbr0"
-  LAN_IP_ADDR="192.168.1.1"
+  LAN_IP_ADDR="10.30.0.1"
   LAN_NETMASK="255.255.255.0"
   LAN_VLAN=",tag=999"
   MTU=""
@@ -416,12 +416,12 @@ ssh_check
 start_script
 post_to_api_vm
 
-msg_info "Validating Storage"
+msg_info "验证存储位置"
 while read -r line; do
   TAG=$(echo $line | awk '{print $1}')
   TYPE=$(echo $line | awk '{printf "%-10s", $2}')
   FREE=$(echo $line | numfmt --field 4-6 --from-unit=K --to=iec --format %.2f | awk '{printf( "%9sB", $6)}')
-  ITEM="  Type: $TYPE Free: $FREE "
+  ITEM="  类型: $TYPE 可用空间: $FREE "
   OFFSET=2
   if [[ $((${#ITEM} + $OFFSET)) -gt ${MSG_MAX_LENGTH:-} ]]; then
     MSG_MAX_LENGTH=$((${#ITEM} + $OFFSET))
@@ -430,39 +430,39 @@ while read -r line; do
 done < <(pvesm status -content images | awk 'NR>1')
 VALID=$(pvesm status -content images | awk 'NR>1')
 if [ -z "$VALID" ]; then
-  echo -e "\n${RD}⚠ Unable to detect a valid storage location.${CL}"
-  echo -e "Exiting..."
+  echo -e "\n${RD}⚠ 无法检测到有效的存储位置${CL}"
+  echo -e "退出中..."
   exit
 elif [ $((${#STORAGE_MENU[@]} / 3)) -eq 1 ]; then
   STORAGE=${STORAGE_MENU[0]}
 else
   while [ -z "${STORAGE:+x}" ]; do
-    STORAGE=$(whiptail --backtitle "Proxmox VE Helper Scripts" --title "Storage Pools" --radiolist \
-      "Which storage pool you would like to use for the OpenWrt VM?\n\n" \
+    STORAGE=$(whiptail --backtitle "Proxmox VE Helper Scripts" --title "存储池" --radiolist \
+      "请选择要用于OpenWrt虚拟机的存储池?\n\n" \
       16 $(($MSG_MAX_LENGTH + 23)) 6 \
       "${STORAGE_MENU[@]}" 3>&1 1>&2 2>&3) || exit
   done
 fi
-msg_ok "Using ${CL}${BL}$STORAGE${CL} ${GN}for Storage Location."
-msg_ok "Virtual Machine ID is ${CL}${BL}$VMID${CL}."
-msg_info "Getting URL for OpenWrt Disk Image"
+msg_ok "使用 ${CL}${BL}$STORAGE${CL} ${GN}作为存储位置"
+msg_ok "虚拟机ID为 ${CL}${BL}$VMID${CL}"
+msg_info "获取OpenWrt磁盘镜像URL"
 
 response=$(curl -s https://openwrt.org)
 stableversion=$(echo "$response" | sed -n 's/.*Current stable release - OpenWrt \([0-9.]\+\).*/\1/p' | head -n 1)
-URL="https://downloads.openwrt.org/releases/$stableversion/targets/x86/64/openwrt-$stableversion-x86-64-generic-ext4-combined.img.gz"
+URL="https://mirrors.ustc.edu.cn/openwrt/releases/$stableversion/targets/x86/64/openwrt-$stableversion-x86-64-generic-ext4-combined.img.gz"
 
 sleep 2
 msg_ok "${CL}${BL}${URL}${CL}"
 wget -q --show-progress $URL
 echo -en "\e[1A\e[0K"
 FILE=$(basename $URL)
-msg_ok "Downloaded ${CL}${BL}$FILE${CL}"
+msg_ok "下载完成 ${CL}${BL}$FILE${CL}"
 gunzip -f $FILE >/dev/null 2>/dev/null || true
 NEWFILE="${FILE%.*}"
 FILE="$NEWFILE"
 mv $FILE ${FILE%.*}
 qemu-img resize -f raw ${FILE%.*} 512M >/dev/null 2>/dev/null
-msg_ok "Extracted & Resized OpenWrt Disk Image ${CL}${BL}$FILE${CL}"
+msg_ok "已解压并调整OpenWrt磁盘镜像大小 ${CL}${BL}$FILE${CL}"
 STORAGE_TYPE=$(pvesm status -storage $STORAGE | awk 'NR>1 {print $2}')
 case $STORAGE_TYPE in
 nfs | dir)
@@ -482,7 +482,7 @@ for i in {0,1}; do
   eval DISK${i}_REF=${STORAGE}:${DISK_REF:-}${!disk}
 done
 
-msg_info "Creating OpenWrt VM"
+msg_info "创建OpenWrt虚拟机"
 qm create $VMID -cores $CORE_COUNT -memory $RAM_SIZE -name $HN \
   -onboot 1 -ostype l26 -scsihw virtio-scsi-pci --tablet 0
 pvesm alloc $STORAGE $VMID $DISK0 4M 1>&/dev/null
@@ -492,17 +492,17 @@ qm set $VMID \
   -scsi0 ${DISK1_REF},size=512M \
   -boot order=scsi0 \
   -tags community-script \
-  -description "<div align='center'><a href='https://Helper-Scripts.com'><img src='https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/misc/images/logo-81x112.png'/></a>
+  -description "<div align='center'><a href='https://Helper-Scripts.com'><img src='https://proxy.vercel.lihaha.cn/proxy/raw.githubusercontent.com/community-scripts/ProxmoxVE/main/misc/images/logo-81x112.png'/></a>
 
   # OpenWRT
 
   <a href='https://ko-fi.com/D1D7EP4GF'><img src='https://img.shields.io/badge/&#x2615;-Buy me a coffee-blue' /></a>
   </div>" >/dev/null
-msg_ok "Created OpenWrt VM ${CL}${BL}(${HN})"
-msg_info "OpenWrt is being started in order to configure the network interfaces."
+msg_ok "已创建OpenWrt虚拟机 ${CL}${BL}(${HN})"
+msg_info "正在启动OpenWrt以配置网络接口"
 qm start $VMID
 sleep 15
-msg_ok "Network interfaces are being configured as OpenWrt initiates."
+msg_ok "正在配置网络接口"
 send_line_to_vm ""
 send_line_to_vm "uci delete network.@device[0]"
 send_line_to_vm "uci set network.wan=interface"
@@ -516,23 +516,23 @@ send_line_to_vm "uci set network.lan.ipaddr=${LAN_IP_ADDR}"
 send_line_to_vm "uci set network.lan.netmask=${LAN_NETMASK}"
 send_line_to_vm "uci commit"
 send_line_to_vm "halt"
-msg_ok "Network interfaces have been successfully configured."
+msg_ok "网络接口配置完成"
 until qm status $VMID | grep -q "stopped"; do
   sleep 2
 done
-msg_info "Bridge interfaces are being added."
+msg_info "正在添加网桥接口"
 qm set $VMID \
   -net0 virtio,bridge=${LAN_BRG},macaddr=${LAN_MAC}${LAN_VLAN}${MTU} \
   -net1 virtio,bridge=${BRG},macaddr=${MAC}${VLAN}${MTU} >/dev/null 2>/dev/null
-msg_ok "Bridge interfaces have been successfully added."
+msg_ok "网桥接口添加完成"
 if [ "$START_VM" == "yes" ]; then
-  msg_info "Starting OpenWrt VM"
+  msg_info "启动OpenWrt虚拟机"
   qm start $VMID
-  msg_ok "Started OpenWrt VM"
+  msg_ok "OpenWrt虚拟机已启动"
 fi
 VLAN_FINISH=""
 if [ "$VLAN" == "" ] && [ "$VLAN2" != "999" ]; then
-  VLAN_FINISH=" Please remember to adjust the VLAN tags to suit your network."
+  VLAN_FINISH=" 请记得根据您的网络调整VLAN标签"
 fi
 post_update_to_api "done" "none"
-msg_ok "Completed Successfully!\n${VLAN_FINISH}"
+msg_ok "安装完成!\n${VLAN_FINISH}"
