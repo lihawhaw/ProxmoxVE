@@ -223,6 +223,7 @@ function default_settings() {
   MTU=""
   START_VM="yes"
   METHOD="default"
+  FS_TYPE="squashfs"
   echo -e "${DGN}Using Virtual Machine ID: ${BGN}${VMID}${CL}"
   echo -e "${DGN}Using Hostname: ${BGN}${HN}${CL}"
   echo -e "${DGN}Allocated Cores: ${BGN}${CORE_COUNT}${CL}"
@@ -236,6 +237,7 @@ function default_settings() {
   echo -e "${DGN}Using LAN IP Address: ${BGN}${LAN_IP_ADDR}${CL}"
   echo -e "${DGN}Using LAN NETMASK: ${BGN}${LAN_NETMASK}${CL}"
   echo -e "${DGN}Using Interface MTU Size: ${BGN}Default${CL}"
+  echo -e "${DGN}Using File System Type: ${BGN}${FS_TYPE}${CL}"
   echo -e "${DGN}Start VM when completed: ${BGN}yes${CL}"
   echo -e "${BL}Creating a OpenWRT VM using the above default settings${CL}"
 }
@@ -382,6 +384,13 @@ function advanced_settings() {
     exit-script
   fi
 
+  if (whiptail --backtitle "Proxmox VE Helper Scripts" --title "文件系统类型" --yesno "是否使用ext4文件系统? (默认: squashfs)" 10 58); then
+    FS_TYPE="ext4"
+  else
+    FS_TYPE="squashfs"
+  fi
+  echo -e "${DGN}Using File System Type: ${BGN}${FS_TYPE}${CL}"
+
   if (whiptail --backtitle "Proxmox VE Helper Scripts" --title "START VIRTUAL MACHINE" --yesno "Start VM when completed?" 10 58); then
     START_VM="yes"
   else
@@ -449,7 +458,7 @@ msg_info "获取OpenWrt磁盘镜像URL"
 
 response=$(curl -s https://openwrt.org)
 stableversion=$(echo "$response" | sed -n 's/.*Current stable release - OpenWrt \([0-9.]\+\).*/\1/p' | head -n 1)
-URL="https://mirrors.ustc.edu.cn/openwrt/releases/$stableversion/targets/x86/64/openwrt-$stableversion-x86-64-generic-ext4-combined.img.gz"
+URL="https://mirrors.ustc.edu.cn/openwrt/releases/$stableversion/targets/x86/64/openwrt-$stableversion-x86-64-generic-$FS_TYPE-combined.img.gz"
 
 sleep 2
 msg_ok "${CL}${BL}${URL}${CL}"
